@@ -1,4 +1,4 @@
-1.2.1-airbyte (2021-02-19)
+1.2.2-airbyte (2021-02-19)
 -------------------
 
 Chunk syncs into one day intervals to prevent sampling errors

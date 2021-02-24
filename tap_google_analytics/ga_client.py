@@ -184,24 +184,23 @@ class GAClient:
         try:
             records = []
             start_date = datetime.strptime(self.start_date, "%Y-%m-%d")
-            end_date = start_date + timedelta(days=1)
 
-            while end_date.date() <= datetime.now().date():
-                LOGGER.info(f"Start syncing {start_date.strftime('%Y-%m-%d')}")
+            while start_date.date() <= datetime.now().date():
+                raw_start_date = start_date.strftime('%Y-%m-%d')
+                LOGGER.info(f"Sending request for {start_date.strftime('%Y-%m-%d')}")
                 report_definition = self.generate_report_definition(stream)
                 nextPageToken = None
 
                 while True:
-                    response = self.query_api(report_definition, nextPageToken)
-                    (nextPageToken, results) = self.process_response(response)
+                    response = self.query_api(report_definition, nextPageToken, raw_start_date)
+                    (nextPageToken, results) = self.process_response(response, raw_start_date)
                     records.extend(results)
 
                     # Keep on looping as long as we have a nextPageToken
                     if nextPageToken is None:
                         break
 
-                start_date = end_date
-                end_date += timedelta(days=1)
+                start_date += timedelta(days=1)
 
             return records
         except HttpError as e:
@@ -241,7 +240,7 @@ class GAClient:
                           (HttpError, socket.timeout),
                           max_tries=9,
                           giveup=is_fatal_error)
-    def query_api(self, report_definition, pageToken=None):
+    def query_api(self, report_definition, pageToken=None, report_date=None):
         """Queries the Analytics Reporting API V4.
 
         Returns:
@@ -250,23 +249,24 @@ class GAClient:
         return self.analytics.reports().batchGet(
             body={
                 'reportRequests': [
-                {
-                    'viewId': self.view_id,
-                    'dateRanges': [{'startDate': self.start_date, 'endDate': self.end_date}],
-                    'pageSize': '1000',
-                    'pageToken': pageToken,
-                    'metrics': report_definition['metrics'],
-                    'dimensions': report_definition['dimensions'],
-                }]
+                    {
+                        'viewId': self.view_id,
+                        'dateRanges': [{'startDate': report_date, 'endDate': report_date}],
+                        'pageSize': '1000',
+                        'pageToken': pageToken,
+                        'metrics': report_definition['metrics'],
+                        'dimensions': report_definition['dimensions'],
+                    }]
             },
             quotaUser=self.quota_user
         ).execute()
 
-    def process_response(self, response):
+    def process_response(self, response, report_date):
         """Processes the Analytics Reporting API V4 response.
 
         Args:
             response: An Analytics Reporting API V4 response.
+            report_date: Report date
 
         Returns: (nextPageToken, results)
             nextPageToken: The next Page Token
@@ -305,7 +305,7 @@ class GAClient:
                     else:
                         value = dimension
 
-                    record[header.replace("ga:","ga_")] = value
+                    record[header.replace("ga:", "ga_")] = value
 
                 for i, values in enumerate(dateRangeValues):
                     for metricHeader, value in zip(metricHeaders, values.get('values')):
@@ -317,11 +317,10 @@ class GAClient:
                         elif metric_type == 'number':
                             value = float(value)
 
-                        record[metric_name.replace("ga:","ga_")] = value
+                        record[metric_name.replace("ga:", "ga_")] = value
 
                 # Also add the [start_date,end_date) used for the report
-                record['report_start_date'] = self.start_date
-                record['report_end_date'] = self.end_date
+                record['report_date'] = report_date
 
                 results.append(record)
 

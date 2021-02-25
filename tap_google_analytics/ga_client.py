@@ -320,7 +320,8 @@ class GAClient:
                         record[metric_name.replace("ga:", "ga_")] = value
 
                 # Also add the [start_date,end_date) used for the report
-                record['report_date'] = report_date
+                record['report_start_date'] = self.start_date
+                record['report_end_date'] = self.end_date
 
                 results.append(record)
 

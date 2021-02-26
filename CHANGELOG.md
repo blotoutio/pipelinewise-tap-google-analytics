@@ -1,3 +1,8 @@
+1.2.2-airbyte (2021-02-19)
+-------------------
+
+Chunk syncs into one day intervals to prevent sampling errors
+
 1.1.1 (2020-05-29)
 -------------------
 

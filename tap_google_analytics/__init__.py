@@ -19,6 +19,7 @@ REQUIRED_CONFIG_KEYS = [
 
 LOGGER = singer.get_logger('tap_google_analytics')
 
+
 def discover(config):
     # Load the reports json file
     default_reports = Path(__file__).parent.joinpath('defaults', 'default_report_definition.json')
@@ -41,28 +42,30 @@ def discover(config):
     # Generate and return the catalog
     return reports_helper.generate_catalog()
 
+
 def get_selected_streams(catalog):
-    '''
+    """
     Gets selected streams.  Checks for an empty breadcrumb
     and metadata with a 'selected' or an 'inclusion' == automatic entry
-    '''
+    """
     selected_streams = []
     for stream in catalog['streams']:
         stream_metadata = metadata.to_map(stream['metadata'])
 
         # stream metadata will have an empty breadcrumb
         if metadata.get(stream_metadata, (), "selected") \
-          or metadata.get(stream_metadata, (), "inclusion") == 'automatic':
+                or metadata.get(stream_metadata, (), "inclusion") == "automatic":
             selected_streams.append(stream['tap_stream_id'])
 
     return selected_streams
+
 
 def sync(config, state, catalog):
     errors_encountered = False
 
     selected_stream_ids = get_selected_streams(catalog)
 
-    client = GAClient(config)
+    client = GAClient(config, state)
 
     # Loop over streams in catalog
     for stream in catalog['streams']:
@@ -83,6 +86,9 @@ def sync(config, state, catalog):
                 #  fetch records without errors
                 singer.write_schema(stream_id, stream_schema, key_properties)
                 singer.write_records(stream_id, results)
+
+                singer.write_bookmark(state, stream_id, 'report_start_date', client.end_date)
+                singer.write_state(state)
             except TapGaInvalidArgumentError as e:
                 errors_encountered = True
                 LOGGER.error("Skipping stream: '{}' due to invalid report definition.".format(stream_id))
@@ -112,9 +118,11 @@ def sync(config, state, catalog):
 
     return
 
+
 def load_json(path):
     with open(path) as f:
         return json.load(f)
+
 
 def process_args():
     # Parse command line arguments
@@ -130,7 +138,8 @@ def process_args():
         sys.exit(1)
 
     if not args.config.get('key_file_location') and not args.config.get('oauth_credentials'):
-        LOGGER.critical("tap-google-analytics: a valid key_file_location string or oauth_credentials object must be provided.")
+        LOGGER.critical(
+            "tap-google-analytics: a valid key_file_location string or oauth_credentials object must be provided.")
         sys.exit(1)
 
     # Remove optional args that have empty strings as values
@@ -143,11 +152,11 @@ def process_args():
     # Process the [start_date, end_date) so that they define an open date window
     # that ends yesterday if end_date is not defined
     start_date = utils.strptime_to_utc(args.config['start_date'])
-    args.config['start_date'] = utils.strftime(start_date,'%Y-%m-%d')
+    args.config['start_date'] = utils.strftime(start_date, '%Y-%m-%d')
 
     end_date = args.config.get('end_date', utils.strftime(utils.now()))
     end_date = utils.strptime_to_utc(end_date) - datetime.timedelta(days=1)
-    args.config['end_date'] = utils.strftime(end_date ,'%Y-%m-%d')
+    args.config['end_date'] = utils.strftime(end_date, '%Y-%m-%d')
 
     if end_date < start_date:
         LOGGER.critical("tap-google-analytics: start_date '{}' > end_date '{}'".format(start_date, end_date))
@@ -159,7 +168,8 @@ def process_args():
             try:
                 args.config['client_secrets'] = load_json(args.config['key_file_location'])
             except ValueError:
-                LOGGER.critical("tap-google-analytics: The JSON definition in '{}' has errors".format(args.config['key_file_location']))
+                LOGGER.critical("tap-google-analytics: The JSON definition in '{}' has errors".format(
+                    args.config['key_file_location']))
                 sys.exit(1)
         else:
             LOGGER.critical("tap-google-analytics: '{}' file not found".format(args.config['key_file_location']))
@@ -186,6 +196,7 @@ def process_args():
 
     return args
 
+
 @utils.handle_top_exception(LOGGER)
 def main():
     # Parse command line arguments
@@ -203,6 +214,7 @@ def main():
             catalog = discover(args.config)
 
         sync(args.config, args.state, catalog)
+
 
 if __name__ == "__main__":
     main()

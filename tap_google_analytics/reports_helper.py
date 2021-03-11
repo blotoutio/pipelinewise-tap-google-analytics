@@ -66,6 +66,7 @@ class ReportsHelper:
             stream_metadata = {
                 "metadata": {
                     "inclusion": "automatic",
+                    "forced-replication-method": "incremental",
                     "table-key-properties": None
                 },
                 "breadcrumb": []
@@ -134,7 +135,7 @@ class ReportsHelper:
             stream_metadata['metadata']['table-key-properties'] = table_key_properties
 
             # Add the Stream metadata (empty breadcrumb) to the start of the
-            #  metada list so that everything is neatly organized in the Catalog
+            #  metadata list so that everything is neatly organized in the Catalog
             metadata.insert(0, stream_metadata)
 
             # create and add catalog entry
@@ -142,7 +143,7 @@ class ReportsHelper:
                 'stream': schema_name,
                 'tap_stream_id': schema_name,
                 'schema': schema,
-                'metadata' : metadata
+                'metadata': metadata
             }
             streams.append(catalog_entry)
 

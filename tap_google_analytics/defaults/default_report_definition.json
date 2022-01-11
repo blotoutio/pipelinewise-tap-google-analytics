@@ -158,12 +158,12 @@
         "ga:sessions",
         "ga:newUsers",
         "ga:adCost",
-        "ga:date",
         "ga:ROAS",
         "ga:goal11Completions",
         "ga:goal12Completions",
         "ga:productRevenuePerPurchase",
-        "ga:transactionRevenue"
+        "ga:transactionRevenue",
+        "ga:transactionRevenuePerSession"
       ]
     }
 ]
